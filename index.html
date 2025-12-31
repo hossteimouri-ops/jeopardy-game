@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jeopardy</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0b1c2d;
+  color: white;
+  text-align: center;
+}
+
+h1 {
+  margin: 10px;
+  font-size: 3rem;
+}
+
+.scores {
+  display: flex;
+  justify-content: space-around;
+  margin: 10px;
+  font-size: 1.4rem;
+}
+
+.team button {
+  font-size: 1.2rem;
+  margin: 4px;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  padding: 10px;
+}
+
+.category {
+  background: #143a5c;
+  padding: 12px;
+  font-weight: bold;
+}
+
+.cell {
+  background: #1f6fb2;
+  padding: 18px;
+  font-size: 1.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.cell.used {
+  background: #333;
+  cursor: default;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: black;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.overlay.active {
+  display: flex;
+}
+
+.card {
+  max-width: 900px;
+  padding: 30px;
+}
+
+.question {
+  font-size: 2.3rem;
+  margin-bottom: 20px;
+}
+
+.answer {
+  display: none;
+  font-size: 2rem;
+  color: #00ffcc;
+}
+
+button {
+  padding: 10px 16px;
+  font-size: 1.1rem;
+  margin: 6px;
+  border-radius: 8px;
+  border: none;
+}
+</style>
+</head>
+
+<body>
+
+<h1>JEOPARDY</h1>
+
+<!-- SCOREBOARD -->
+<div class="scores">
+  <div class="team">
+    Team 1: <span id="s1">0</span><br>
+    <button onclick="score(1,100)">+100</button>
+    <button onclick="score(1,-100)">-100</button>
+  </div>
+  <div class="team">
+    Team 2: <span id="s2">0</span><br>
+    <button onclick="score(2,100)">+100</button>
+    <button onclick="score(2,-100)">-100</button>
+  </div>
+  <div class="team">
+    Team 3: <span id="s3">0</span><br>
+    <button onclick="score(3,100)">+100</button>
+    <button onclick="score(3,-100)">-100</button>
+  </div>
+</div>
+
+<!-- BOARD -->
+<div class="board" id="board"></div>
+
+<!-- QUESTION OVERLAY -->
+<div class="overlay" id="overlay">
+  <div class="card">
+    <div class="question" id="question"></div>
+    <div class="answer" id="answer"></div>
+    <button onclick="reveal()">Show Answer</button>
+    <button onclick="closeCard()">Back</button>
+  </div>
+</div>
+
+<script>
+const categories = [
+  "Movies, Shows, Books & Plays",
+  "Geography",
+  "History",
+  "Animals",
+  "Weird Facts (True or False)"
+];
+
+const values = [100,200,300,400,500,600,700,800,900,1000];
+
+const questions = [
+  // Movies, Shows, Books & Plays
+  [
+    ["This novel opens with the sentence “Call me Ishmael.”","Moby-Dick"],
+    ["This television series is set in the fictional company Dunder Mifflin.","The Office"],
+    ["This Shakespeare play contains the famous soliloquy that begins with “To be, or not to be.”","Hamlet"],
+    ["This author wrote both the novels Animal Farm and 1984.","George Orwell"],
+    ["This classic film includes the line “Here’s looking at you, kid.”","Casablanca"],
+    ["This play focuses on two characters waiting for someone who never arrives.","Waiting for Godot"],
+    ["This film director is known for making both Pulp Fiction and Kill Bill.","Quentin Tarantino"],
+    ["This novel tells the story of Atticus Finch defending a man in the American South.","To Kill a Mockingbird"],
+    ["This film won Best Picture while featuring a mute cleaning woman as the main character.","The Shape of Water"],
+    ["This novel by Mikhail Bulgakov features the character Woland visiting Moscow.","The Master and Margarita"]
+  ],
+
+  // Geography
+  [
+    ["This country has the greatest number of time zones when overseas territories are included.","France"],
+    ["This city is commonly described as being located on both Europe and Asia.","Istanbul"],
+    ["This river flows through more countries than any other river in the world.","The Danube"],
+    ["This island is the largest island on Earth by area.","Greenland"],
+    ["This desert is the largest hot desert on the planet.","The Sahara"],
+    ["This mountain is the highest point on Earth above sea level.","Mount Everest"],
+    ["This country is often cited as having no permanent rivers.","Saudi Arabia"],
+    ["This European city is famously built on canals rather than roads.","Venice"],
+    ["This location is known as the deepest point in the world’s oceans.","The Challenger Deep"],
+    ["This African country has coastlines on both the Atlantic and Indian Oceans.","South Africa"]
+  ],
+
+  // History
+  [
+    ["This physical barrier fell in 1989 and became a symbol of the end of the Cold War.","The Berlin Wall"],
+    ["This passenger ship sank on its maiden voyage in 1912.","The Titanic"],
+    ["This ancient empire was ruled by figures such as Julius Caesar and Augustus.","The Roman Empire"],
+    ["This major political revolution began with the storming of the Bastille.","The French Revolution"],
+    ["This treaty formally ended World War I.","The Treaty of Versailles"],
+    ["This civil rights leader delivered the “I Have a Dream” speech in 1963.","Martin Luther King Jr."],
+    ["This war was fought between the northern and southern states of the United States.","The American Civil War"],
+    ["This invention allowed books to be produced quickly and helped spread literacy.","The printing press"],
+    ["This pandemic killed millions of people in Europe during the 14th century.","The Black Death"],
+    ["This U.S.-led program helped rebuild Europe after World War II.","The Marshall Plan"]
+  ],
+
+  // Animals
+  [
+    ["This mammal is capable of true sustained flight.","A bat"],
+    ["This African animal is known for its distinctive black and white stripes.","A zebra"],
+    ["This sea creature has three hearts and blue blood.","An octopus"],
+    ["This bird is able to hover and fly backwards.","A hummingbird"],
+    ["This animal is known for sleeping more hours per day than any other mammal.","A koala"],
+    ["This mammal is one of the few that lays eggs instead of giving live birth.","The platypus"],
+    ["This reptile has one of the strongest bite forces ever measured.","A crocodile"],
+    ["This animal is known to continue growing throughout its entire life.","A lobster"],
+    ["This animal can regenerate lost limbs, including arms.","A starfish"],
+    ["This animal is widely regarded as the fastest land animal on Earth.","The cheetah"]
+  ],
+
+  // Weird Facts (True/False)
+  [
+    ["Bananas are classified botanically as berries.","True"],
+    ["Goldfish have a memory that lasts only three seconds.","False"],
+    ["Honey can remain edible for thousands of years without spoiling.","True"],
+    ["Octopuses have blue blood due to the presence of copper in their blood.","True"],
+    ["Humans emit a very faint visible light due to biochemical reactions in the body.","True"],
+    ["A single day on Venus is longer than a full year on Venus.","True"],
+    ["There are more trees on Earth than stars in the Milky Way galaxy.","True"],
+    ["Sharks existed on Earth before trees evolved.","True"],
+    ["Water can exist in solid, liquid, and gas form at the same time under specific conditions.","True"],
+    ["The Eiffel Tower becomes noticeably taller during summer due to heat expansion.","True"]
+  ]
+];
+
+let scores = [0,0,0];
+
+function score(team, val){
+  scores[team-1] += val;
+  document.getElementById("s"+team).textContent = scores[team-1];
+}
+
+const board = document.getElementById("board");
+const overlay = document.getElementById("overlay");
+const qEl = document.getElementById("question");
+const aEl = document.getElementById("answer");
+
+categories.forEach(cat=>{
+  const d=document.createElement("div");
+  d.className="category";
+  d.textContent=cat;
+  board.appendChild(d);
+});
+
+values.forEach((v,r)=>{
+  for(let c=0;c<5;c++){
+    const cell=document.createElement("div");
+    cell.className="cell";
+    cell.textContent=v;
+    cell.onclick=()=>openCard(c,r,cell);
+    board.appendChild(cell);
+  }
+});
+
+function openCard(c,r,cell){
+  if(cell.classList.contains("used"))return;
+  cell.classList.add("used");
+  qEl.textContent=questions[c][r][0];
+  aEl.textContent=questions[c][r][1];
+  aEl.style.display="none";
+  overlay.classList.add("active");
+}
+
+function reveal(){aEl.style.display="block";}
+function closeCard(){overlay.classList.remove("active");}
+</script>
+
+</body>
+</html>
